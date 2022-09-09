@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+
+<style type="text/css">
+.main{
+	max-width: 500px;
+	padding: 20px 12px 10px 20px;
+	font: 13px Arial, Helvetica, sans-serif;
+}
+.heading{
+	font-weight: bold;
+	font-style: italic;
+	border-bottom: 2px solid #ddd;
+	margin-bottom: 20px;
+	font-size: 18px;
+	padding-bottom: 3px;
+}
+.label{
+	display: block;
+	margin: 0px 0px 15px 0px;
+	font-weight: bold;
+}
+</style>
+
+ <body onload="DrawAll()"> 
+
+
+
+<div class="main">
+
+<table>
+  <tr>
+	<th>
+	<div class="heading">Laser G-code Test Card generator (by LsrSal)</div>
+<form onchange="DrawAll()">
+<table>
+  <tr>
+  <th><label for="SX">Card Size X, mm</label>
+  <input type="number" id="SX" name="SX" value=67></th>
+  <th><label for="SY">Card Size Y, mm</label>
+  <input type="number" id="SY" name="SY" value=58></th>
+  </tr>
+    <tr>
+  <th><label for="NX">Columns/X</label><br>
+  <input type="number" id="NX" name="NX" value=7><br></th>
+  <th><label for="NY">Rows/Y</label><br>
+  <input type="number" id="NY" name="NY" value=8><br></th>
+	</tr>
+	<tr>
+		<th>
+			<label for="SpMin">Min Speed, mm/min</label>
+			<input type="number" id="SpMin" name="SpMin" value=1000>
+		</th>
+		<th>
+			<label for="SpMax">Max Speed, mm/min</label>
+			<input type="number" id="SpMax" name="SpMax" value=3000>
+		
+		</th>	
+	</tr>
+ 	<tr>
+		<th>
+		  <label for="PwMin">Minimum power, (100 = 10%)</label>
+  <input type="number" id="PwMin" name="PwMin" value=100>
+		</th>
+		<th>
+		  <label for="PwMax">Maximum power, (1000 = 100%)</label>
+  <input type="number" id="PwMax" name="PwMax" value=1000>
+		
+		</th>	
+	</tr>
+  
+ 
+  
+<!--    <label for="Shp">Select shape:</label>
+  <select name="Shp" id="Shp">
+    <option value="square">square</option>
+    <option value="round">round</option>
+    <option value="triangle">triangle</option>
+  </select> -->
+ 
+  
+ <div class="form-style-2"> Filled? <input type="checkbox" id="Fil" name="Fil" value=false ></div>
+  
+
+  <label for="Rsl">Filling resolution, lines/mm</label>
+  <input type="number" id="Rsl" name="Rsl" value=20><br><br>
+  
+</table>
+</form>
+
+
+
+<canvas id="myCanvas" width="500" height="500"
+style="border:2px solid #909090;" onclick="download('TestCard.nc')">
+Your browser does not support the canvas element.
+</canvas>
+		</th>
+	<th valign="top">
+<form>
+
+  <textarea id="GCode" name="GCode" rows="40" wrap="hard"></textarea>
+
+</form>	
+		</th>
+	</tr>
+</table>
+
+</div>
+
+
+<script>
+
+var ScreenScale = 6; //to get in the ballpark of your screen
+var header = "G90\r\nG0 X0 Y0\r\M4 S0\r\n";
+var footer = "M5\r\nG0 X0 Y0\r\nM30";
+
+var S; //laser power/spindle speed
+var F;  // Feed rate
+var ColorS;
+var sideX;
+var sideY;
+var GCode;
+
+var canvas = document.getElementById("myCanvas");
+var ctx = canvas.getContext("2d");
+
+
+
+
+function DrawAll(){
+sideX = Math.floor((document.getElementById("SX").value - 10 )/document.getElementById("NX").value/2);
+sideY = Math.floor((document.getElementById("SY").value - 10)/document.getElementById("NY").value/2);
+
+ctx.canvas.width  = document.getElementById('SX').value * ScreenScale;
+ctx.canvas.height = document.getElementById('SY').value * ScreenScale;
+
+ctx.clearRect(0, 0,document.getElementById("SX").value,(document.getElementById("SY").value));
+ctx.scale(ScreenScale, ScreenScale);
+
+
+GCode = header;
+GCode = GCode + BurnFrame();
+AnnotateX();
+//AnnotateY()
+DrawCol();
+GCode = GCode + footer;
+document.getElementById("GCode").value = GCode;
+}
+
+function DrawCol(){
+for (let i = 0; i < document.getElementById("NY").value; i++) {
+DrawRow(i);
+}}
+
+
+function DrawRow(Yi){
+Y=sideY * 2 * Yi +7;
+F =  Math.floor(Number( document.getElementById("SpMax").value )  - (Yi) *((document.getElementById("SpMax").value - document.getElementById("SpMin").value)/ (document.getElementById("NY").value - 1)));
+
+ 
+ctx.font = "3px Arial";
+ctx.fillText(F, 1, sideY * 2 * Yi +10);
+
+for (let i = 0; i < document.getElementById("NX").value; i++) { 
+let PWR = Math.floor(Number( document.getElementById("PwMin").value ) + (i) *((document.getElementById("PwMax").value - document.getElementById("PwMin").value)/ (document.getElementById("NX").value - 1)));
+DrawCell(sideX * 2 * i - 5, Y, PWR);
+}}
+
+function DrawCell(X,Y,S)
+{
+Color(S);
+ctx.fillStyle = ColorS;
+if(document.getElementById("Fil").checked == true){
+ctx.fillRect(X+15,Y,sideX*1.5,sideY*1.5);
+//g-code
+let lines = Math.floor(document.getElementById("Rsl").value * sideY);
+let Ystep = 1/document.getElementById("Rsl").value;
+//Ystep=Ystep.toFixed(2);
+Y=Math.round(document.getElementById("SY").value-Y);
+GCode = GCode + "G00 X" + (X+15) +" Y" + Y + "\r\n" + "S "+S+"\r\n" + "F "+F+"\r\n";
+for (let i = 0; i < lines; i++){
+Y= Y.toFixed(6);
+GCode = GCode + "G01 X" + (sideX*1.5+X+15)+ "\r\nG00 X" + (X+15)+" Y" + (Y) + "\r\n";
+Y=Y-Ystep;
+
+}
+GCode = GCode + "S0" + "\r\n";
+}
+else {
+ctx.lineWidth = "0.3";
+ctx.strokeStyle = ColorS;
+ctx.strokeRect(X+15,Y,sideX*1.5,sideY*1.5);
+//g-code
+Y=document.getElementById("SY").value-Y;
+GCode = GCode + "G00 X" + (X+15) +" Y" + Y + "\r\n" + "S "+S+"\r\n" + "F "+F+"\r\n";
+GCode = GCode + "G01 X" + (sideX*1.5+X+15)+ "\r\n"+ "G01 Y" + (sideY*1.5+Y)+ "\r\n" +"G01 X" + (X+15)+ "\r\n"+ "G01 Y" + (Y)+ "\r\n";
+GCode = GCode + "S0" + "\r\n";
+}}
+
+
+function Color(S){
+var CLR = Math.floor((1000-S)*255/1000);
+let str = "#" + CLR.toString(16) + CLR.toString(16) + CLR.toString(16);
+ColorS=str;
+}
+
+
+function AnnotateX(){
+ctx.font = "2px Arial";
+ctx.fillText("Power", 4, 2);
+ctx.fillText("Speed", 1, 6);
+
+for (let i = 0; i < document.getElementById("NX").value; i++) {
+let str =  Math.floor(Number( document.getElementById("PwMin").value ) + (i) *((document.getElementById("PwMax").value - document.getElementById("PwMin").value)/ (document.getElementById("NX").value - 1)));
+ctx.font = "3px Arial";
+ctx.fillText(str, sideX * 2 * i + 10, 5);
+}}
+
+
+function BurnFrame(){
+
+
+
+return " (frame here) \r\n";
+
+}
+
+GCode
+
+function download(filename) {
+  var element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(document.getElementById("GCode").value));
+  element.setAttribute('download', filename);
+
+  element.style.display = 'none';
+  document.body.appendChild(element);
+
+  element.click();
+
+  document.body.removeChild(element);
+}
+
+
+</script>
+</body>
+</html>
