@@ -9,3 +9,6 @@ I'm no software developer, so do not judge my code harshly. It works well enough
 https://github.com/arkypita/LaserGRBL
 
 ![image](https://user-images.githubusercontent.com/112994211/189354333-02bd105f-68db-48e9-b3f6-4a2004d2e456.png)
+
+
+In V2 added scale annotation to GCode.
